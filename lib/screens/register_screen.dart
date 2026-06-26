@@ -18,13 +18,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   
+  // ✅ Une seule variable d'erreur globale + erreurs par champ
+  String? _globalError;
   String? _nomError;
   String? _emailError;
   String? _passwordError;
   String? _confirmPasswordError;
 
+  // ✅ 2. MODIFICATION DE _validateFields()
   bool _validateFields() {
     setState(() {
+      _globalError = null;
       _nomError = null;
       _emailError = null;
       _passwordError = null;
@@ -32,45 +36,149 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     bool isValid = true;
+    String? firstError;
 
     if (_nomController.text.trim().isEmpty) {
-      setState(() => _nomError = 'Le nom est requis');
+      _nomError = 'Le nom est requis';
+      firstError ??= _nomError;
       isValid = false;
     }
 
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      setState(() => _emailError = "L'email est requis");
+      _emailError = "L'email est requis";
+      firstError ??= _emailError;
       isValid = false;
     } else if (!email.contains('@') || !email.contains('.')) {
-      setState(() => _emailError = "Email invalide");
+      _emailError = "Email invalide";
+      firstError ??= _emailError;
       isValid = false;
     }
 
     final password = _passwordController.text;
     if (password.isEmpty) {
-      setState(() => _passwordError = "Le mot de passe est requis");
+      _passwordError = "Le mot de passe est requis";
+      firstError ??= _passwordError;
       isValid = false;
     } else if (password.length < 6) {
-      setState(() => _passwordError = "Le mot de passe doit contenir au moins 6 caractères");
+      _passwordError = "Le mot de passe doit contenir au moins 6 caractères";
+      firstError ??= _passwordError;
       isValid = false;
     }
 
     final confirmPassword = _confirmPasswordController.text;
     if (confirmPassword.isEmpty) {
-      setState(() => _confirmPasswordError = "Veuillez confirmer le mot de passe");
+      _confirmPasswordError = "Veuillez confirmer le mot de passe";
+      firstError ??= _confirmPasswordError;
       isValid = false;
     } else if (password != confirmPassword) {
-      setState(() => _confirmPasswordError = "Les mots de passe ne correspondent pas");
+      _confirmPasswordError = "Les mots de passe ne correspondent pas";
+      firstError ??= _confirmPasswordError;
       isValid = false;
     }
+
+    setState(() => _globalError = firstError);
 
     return isValid;
   }
 
-  // ✅ METHODE DE NOTIFICATION CORRIGÉE
+  // ✅ 3. WIDGET BANDEAU D'ERREUR GLOBAL
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Colors.white,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontFamily: 'EncodeSansSemiExpanded',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ 4. _buildField ADOUCI (plus de rouge agressif)
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    bool obscure = false,
+    VoidCallback? onToggle,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+  }) {
+    final hasError = errorText != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'EncodeSansSemiExpanded',
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Colors.white.withOpacity(hasError ? 0.7 : 1),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                obscureText: obscure,
+                keyboardType: keyboardType,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '',
+                ),
+              ),
+            ),
+            Transform.translate(
+              offset: const Offset(0, -4),
+              child: GestureDetector(
+                onTap: onToggle,
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+            ),
+          ],
+        ),
+        Container(
+          height: hasError ? 2 : 1,
+          color: Colors.white.withOpacity(hasError ? 0.9 : 1),
+        ),
+      ],
+    );
+  }
+
+  // ✅ NOTIFICATION MODERNE
   void _showSuccessNotification(String message) {
-    // Vérifier que le widget est toujours monté
     if (!mounted) return;
     
     final overlay = Overlay.of(context);
@@ -163,82 +271,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     overlay.insert(overlayEntry);
 
-    // Auto-disparition après 1.5 secondes
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (overlayEntry.mounted) {
         overlayEntry.remove();
       }
     });
-  }
-
-  Widget _buildField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    bool obscure = false,
-    VoidCallback? onToggle,
-    TextInputType keyboardType = TextInputType.text,
-    String? errorText,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'EncodeSansSemiExpanded',
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: errorText != null ? Colors.red[300] : Colors.white,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                obscureText: obscure,
-                keyboardType: keyboardType,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  hintText: '',
-                ),
-              ),
-            ),
-            Transform.translate(
-              offset: const Offset(0, -4),
-              child: GestureDetector(
-                onTap: onToggle,
-                child: Icon(
-                  icon, 
-                  color: errorText != null ? Colors.red[300] : Colors.white, 
-                  size: 24,
-                ),
-              ),
-            ),
-          ],
-        ),
-        Container(
-          height: 1, 
-          color: errorText != null ? Colors.red : Colors.white,
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.red[300],
-              fontFamily: 'EncodeSansSemiExpanded',
-            ),
-          ),
-        ],
-      ],
-    );
   }
 
   @override
@@ -329,6 +366,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             Container(height: 1, color: Colors.white),
                             const SizedBox(height: 24),
 
+                            // ✅ 5. BANDEAU D'ERREUR GLOBAL (affiché en haut des champs)
+                            if (_globalError != null) _buildErrorBanner(_globalError!),
+
                             _buildField(
                               label: 'Nom',
                               controller: _nomController,
@@ -393,12 +433,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     if (!mounted) return;
 
                                     if (result['success'] == true) {
-                                      // ✅ APPEL DE LA NOTIFICATION MODERNE
                                       _showSuccessNotification(
                                         'Inscription réussie ! Veuillez vous connecter.'
                                       );
                                       
-                                      // Rediriger après un petit délai
                                       Future.delayed(const Duration(seconds: 2), () {
                                         if (mounted) {
                                           Navigator.pushReplacement(
@@ -410,32 +448,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         }
                                       });
                                     } else {
+                                      // ✅ 6. GESTION DES ERREURS SERVEUR
                                       String errorMessage = result['message'] ?? 'Erreur lors de l\'inscription';
-                                      // Afficher l'erreur sur le champ correspondant
-    if (errorMessage.toLowerCase().contains('email')) {
-      setState(() {
-        _emailError = errorMessage;
-      });
-       } else if (errorMessage.toLowerCase().contains('nom')) {
-      setState(() {
-        _nomError = errorMessage;
-      });
-    } else if (errorMessage.toLowerCase().contains('mot de passe') || 
-               errorMessage.toLowerCase().contains('password')) {
-      setState(() {
-        _passwordError = errorMessage;
-      });
-      } else {
-      // Si l'erreur ne correspond à aucun champ, afficher une SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  
+                                      setState(() => _globalError = errorMessage);
+
+                                      if (errorMessage.toLowerCase().contains('email')) {
+                                        setState(() => _emailError = errorMessage);
+                                      } else if (errorMessage.toLowerCase().contains('nom')) {
+                                        setState(() => _nomError = errorMessage);
+                                      } else if (errorMessage.toLowerCase().contains('mot de passe') ||
+                                          errorMessage.toLowerCase().contains('password')) {
+                                        setState(() => _passwordError = errorMessage);
+                                      }
                                     }
                                   },
                                   child: Container(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -105,7 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
             left: 16,
             child: Column(
               children: [
-                _buildIconButton(Icons.settings_outlined, () {}),
+               _buildIconButton(Icons.settings_outlined, () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+  );
+}),
                 const SizedBox(height: 10),
                 _buildIconButton(Icons.notifications_outlined, () {}),
               ],
