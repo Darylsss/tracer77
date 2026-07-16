@@ -88,6 +88,17 @@ flutter:
       fonts:
       - asset: assets/fonts/Inter-Medium.ttf
         weight: 500
+
+    - family: Montserrat
+      fonts:
+      - asset: assets/fonts/Montserrat-Regular.otf
+        weight: 400
+      - asset: assets/fonts/Montserrat-Medium.otf
+        weight: 500
+      - asset: assets/fonts/Montserrat-SemiBold.otf
+        weight: 600
+      - asset: assets/fonts/Montserrat-Bold.otf
+        weight: 700
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -102,6 +113,10 @@ flutter:
     - assets/images/globe.png
     - assets/images/login_illustration.png
     - assets/images/register_illustration.png
+    - assets/images/notif.png
+    - assets/images/domicile.png
+    - assets/images/ecole.png
+    - assets/images/team.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

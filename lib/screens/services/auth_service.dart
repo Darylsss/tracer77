@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
   // Pour TÉLÉPHONE PHYSIQUE sur le même réseau WiFi
-  static const String baseUrl = 'http://192.168.1.81:8000/api';
+  static const String baseUrl = 'http://192.168.1.133:8000/api';
   static const _storage = FlutterSecureStorage();
 
   // Inscription
@@ -147,4 +147,86 @@ class AuthService {
   static Future<void> clearToken() async {
     await _storage.delete(key: 'token');
   }
+
+  // Récupérer les infos de l'user connecté
+static Future<Map<String, dynamic>?> getUser() async {
+  try {
+    final token = await getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/user'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Modifier le nom
+static Future<Map<String, dynamic>> updateName(String nom) async {
+  try {
+    final token = await getToken();
+    final response = await http.put(
+      Uri.parse('$baseUrl/user/update-name'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'nom': nom}),
+    );
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
+
+// Modifier le mot de passe
+static Future<Map<String, dynamic>> updatePassword({
+  required String currentPassword,
+  required String newPassword,
+}) async {
+  try {
+    final token = await getToken();
+    final response = await http.put(
+      Uri.parse('$baseUrl/user/update-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': newPassword,
+      }),
+    );
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
+
+// Supprimer le compte
+static Future<void> deleteAccount() async {
+  try {
+    final token = await getToken();
+    await http.delete(
+      Uri.parse('$baseUrl/user/delete'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    await clearToken();
+  } catch (e) {
+    // silencieux
+  }
+}
 }

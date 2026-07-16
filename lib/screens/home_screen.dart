@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'settings_screen.dart';
+import 'add_tracker_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -117,14 +119,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }),
                 const SizedBox(height: 10),
-                _buildIconButton(Icons.notifications_outlined, () {}),
+                _buildIconButton(Icons.notifications_outlined, () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+  );
+}),
+
               ],
             ),
           ),
 
           // Bouton recentrer sur ma position
           Positioned(
-            bottom: 210,
+            bottom: 250,
             right: 16,
             child: _buildIconButton(Icons.my_location, () {
               if (_currentPosition != null) {
@@ -136,133 +144,143 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           // Panel bas
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 8),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-
-                  const Divider(height: 1, indent: 16, endIndent: 16),
+Positioned(
+  left: 0,
+  right: 0,
+  bottom: 0,
+  child: Container(
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black12,
+          blurRadius: 10,
+          offset: Offset(0, -2),
+        ),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Handle
+        Container(
+          margin: const EdgeInsets.only(top: 10, bottom: 8),
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
 
                   // Vous
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey[200],
+                  border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: Colors.grey,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Vous',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                    child: Row(
+                    const SizedBox(height: 4),
+                    Row(
                       children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: Colors.grey[200],
-                          child: const Icon(
-                            Icons.person,
+                        const Text(
+                          'Localisation\nen direct',
+                          style: TextStyle(
+                            fontSize: 13,
                             color: Colors.grey,
-                            size: 28,
+                            height: 1.2,
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Vous',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Localisation en direct',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          margin: const EdgeInsets.only(top: 2),
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
 
-                  const Divider(height: 1, indent: 16, endIndent: 16),
+        const Divider(height: 1, indent: 16, endIndent: 16),
 
                   // Ajouter un traceur
                   InkWell(
-                    onTap: () {},
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F0FE),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.person_add_outlined,
-                              color: const Color(0xFF1A6FE3),
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Text(
-                            'Ajouter un traceur',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1A6FE3),
-                            ),
-                          ),
-                        ],
-                      ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF1A6FE3),
+                      width: 1.5,
                     ),
                   ),
+                  child: const Icon(
+                    Icons.person_add_alt_outlined,
+                    color: Color(0xFF1A6FE3),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text(
+                  'Ajouter un traceur',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A6FE3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
 
-                  SizedBox(height: MediaQuery.of(context).padding.bottom),
+                  SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
                 ],
               ),
             ),

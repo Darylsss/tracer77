@@ -14,6 +14,140 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  
+  // ✅ Variables d'erreur
+  String? _globalError;
+  String? _emailError;
+  String? _passwordError;
+
+  // ✅ Validation des champs
+  bool _validateFields() {
+    setState(() {
+      _globalError = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+
+    bool isValid = true;
+    String? firstError;
+
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _emailError = "L'email est requis";
+      firstError ??= _emailError;
+      isValid = false;
+    } else if (!email.contains('@') || !email.contains('.')) {
+      _emailError = "Email invalide";
+      firstError ??= _emailError;
+      isValid = false;
+    }
+
+    final password = _passwordController.text;
+    if (password.isEmpty) {
+      _passwordError = "Le mot de passe est requis";
+      firstError ??= _passwordError;
+      isValid = false;
+    }
+
+    setState(() => _globalError = firstError);
+
+    return isValid;
+  }
+
+  // ✅ BANDEAU D'ERREUR GLOBAL (style glassmorphism)
+  Widget _buildErrorBanner(String message) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color.fromARGB(255, 229, 24, 24).withOpacity(0.4),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: Colors.white,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontFamily: 'EncodeSansSemiExpanded',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Champ avec style adouci (même que RegisterScreen)
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    bool obscure = false,
+    VoidCallback? onToggle,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+  }) {
+    final hasError = errorText != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'EncodeSansSemiExpanded',
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Colors.white.withOpacity(hasError ? 0.7 : 1),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                obscureText: obscure,
+                keyboardType: keyboardType,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '',
+                ),
+              ),
+            ),
+            Transform.translate(
+              offset: const Offset(0, -4),
+              child: GestureDetector(
+                onTap: onToggle,
+                child: Icon(icon, color: Colors.white, size: 24),
+              ),
+            ),
+          ],
+        ),
+        Container(
+          height: hasError ? 2 : 1,
+          color: Colors.white.withOpacity(hasError ? 0.9 : 1),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,102 +235,66 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.white,
                           ),
                           const SizedBox(height: 24),
-                          // Label Email
-                          const Text(
-                            'Email',
-                            style: TextStyle(
-                              fontFamily: 'EncodeSansSemiExpanded',
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
+
+                          // ✅ BANDEAU D'ERREUR GLOBAL
+                          if (_globalError != null) _buildErrorBanner(_globalError!),
+
                           // Champ Email
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                    hintText: '',
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                              const Icon(
-                                Icons.alternate_email,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ],
+                          _buildField(
+                            label: 'Email',
+                            controller: _emailController,
+                            icon: Icons.alternate_email,
+                            keyboardType: TextInputType.emailAddress,
+                            errorText: _emailError,
                           ),
-                          // Ligne sous email
-                          Container(height: 1, color: Colors.white),
                           const SizedBox(height: 20),
-                          // Label Mot de passe
-                          const Text(
-                            'Mot de passe',
-                            style: TextStyle(
-                              fontFamily: 'EncodeSansSemiExpanded',
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
+
                           // Champ Mot de passe
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _passwordController,
-                                  obscureText: _obscurePassword,
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: const InputDecoration(
-                                    hintText: '',
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () => setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                ),
-                                child: Icon(
-                                  _obscurePassword
-                                      ? Icons.lock_outline
-                                      : Icons.lock_open_outlined,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              ),
-                            ],
+                          _buildField(
+                            label: 'Mot de passe',
+                            controller: _passwordController,
+                            icon: _obscurePassword
+                                ? Icons.lock_outline
+                                : Icons.lock_open_outlined,
+                            obscure: _obscurePassword,
+                            onToggle: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            errorText: _passwordError,
                           ),
-                          // Ligne sous mot de passe
-                          Container(height: 1, color: Colors.white),
                           const SizedBox(height: 28),
+
                           // Bouton Suivant
                           Center(
                             child: GestureDetector(
                               onTap: () async {
-  final result = await AuthService.login(
-    email: _emailController.text.trim(),
-    password: _passwordController.text,
-  );
+                                // ✅ Validation avant d'appeler l'API
+                                if (!_validateFields()) {
+                                  return;
+                                }
 
-  if (!mounted) return;
+                                final result = await AuthService.login(
+                                  email: _emailController.text.trim(),
+                                  password: _passwordController.text,
+                                );
 
-  if (result['success'] == true) {
-    Navigator.pushReplacementNamed(context, '/home');
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message'] ?? 'Email ou mot de passe incorrect')),
-    );
-  }
-},
+                                if (!mounted) return;
+
+                                if (result['success'] == true) {
+                                  Navigator.pushReplacementNamed(context, '/home');
+                                } else {
+                                  // ✅ Gestion élégante des erreurs serveur
+                                  String errorMessage = result['message'] ?? 'Email ou mot de passe incorrect';
+                                  setState(() => _globalError = errorMessage);
+
+                                  if (errorMessage.toLowerCase().contains('email')) {
+                                    setState(() => _emailError = errorMessage);
+                                  } else if (errorMessage.toLowerCase().contains('mot de passe') ||
+                                      errorMessage.toLowerCase().contains('password')) {
+                                    setState(() => _passwordError = errorMessage);
+                                  }
+                                }
+                              },
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(100),
                                 child: BackdropFilter(
@@ -227,41 +325,41 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 20),
                           // Pas de compte
                           Center(
-  child: Column(
-    children: [
-      const Text(
-        'Pas de compte?',
-        style: TextStyle(
-          fontFamily: 'EncodeSansSemiExpanded',
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: Colors.white,
-        ),
-      ),
-      const SizedBox(height: 4),
-      GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const RegisterScreen(),
-          ),
-        ),
-        child: Text(
-          "S'inscrire.",
-          style: const TextStyle(
-            fontFamily: 'EncodeSansSemiExpanded',
-            fontSize: 18,              // Taille augmentée (14 -> 18)
-            fontWeight: FontWeight.w900, // Déjà en gras max
-            color: Colors.white,
-            decoration: TextDecoration.underline, // Ajout du soulignement
-            decorationColor: Colors.white, // Couleur du soulignement
-            decorationThickness: 2,     // Épaisseur du soulignement
-          ),
-        ),
-      ),
-    ],
-  ),
-),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Pas de compte?',
+                                  style: TextStyle(
+                                    fontFamily: 'EncodeSansSemiExpanded',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const RegisterScreen(),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "S'inscrire.",
+                                    style: TextStyle(
+                                      fontFamily: 'EncodeSansSemiExpanded',
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white,
+                                      decorationThickness: 2,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
