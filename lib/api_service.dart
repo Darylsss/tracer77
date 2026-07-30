@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000/api'; // Pour émulateur Android
+  static const String baseUrl = 'https://tracer77-api-production.up.railway.app/api';
   final storage = FlutterSecureStorage();
   
   Future<Map<String, String>> getHeaders() async {
