@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
   // Pour TÉLÉPHONE PHYSIQUE sur le même réseau WiFi
-  static const String baseUrl = 'http://192.168.1.133:8000/api';
+  static const String baseUrl = 'https://tracer77-api-production.up.railway.app/api';
   static const _storage = FlutterSecureStorage();
 
   // Inscription
