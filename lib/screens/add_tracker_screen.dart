@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'add_place_screen.dart';
+import 'services/auth_service.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'services/auth_service.dart';
 
 class AddTrackerScreen extends StatefulWidget {
   const AddTrackerScreen({super.key});
@@ -15,6 +19,7 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
 
   String _selectedRole = 'Enfant';
   bool _loading = false;
+  File? _selectedImage;
 
   static const Color blue = Color(0xFF0185FF);
   static const Color blueLight = Color(0xFFECF6FF);
@@ -29,12 +34,67 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() => _loading = true);
-    // TODO: brancher sur la route Laravel /devices
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _loading = false);
-    if (mounted) Navigator.pop(context);
+  final nom = _nomController.text.trim();
+  final deviceId = _deviceIdController.text.trim();
+
+  if (nom.isEmpty || deviceId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Le nom et l\'ID du device sont requis')),
+    );
+    return;
   }
+
+  setState(() => _loading = true);
+
+  final result = await AuthService.addEnfantWithPhoto(
+    prenom: nom,
+    identifiantBoitier: deviceId,
+    photo: _selectedImage,
+  );
+
+  setState(() => _loading = false);
+
+  if (result['success'] == true) {
+    if (mounted) Navigator.pop(context);
+  } else if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message'] ?? 'Erreur lors de l\'ajout.')),
+    );
+  }
+}
+
+Future<void> _pickImage() async {
+  final picker = ImagePicker();
+  final source = await showModalBottomSheet<ImageSource>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Wrap(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined, color: blue),
+            title: const Text('Choisir depuis la galerie', style: TextStyle(fontFamily: 'Montserrat')),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined, color: blue),
+            title: const Text('Prendre une photo', style: TextStyle(fontFamily: 'Montserrat')),
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  if (source == null) return;
+
+  final picked = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
+  if (picked != null) {
+    setState(() => _selectedImage = File(picked.path));
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -78,58 +138,46 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
                   children: [
 
                     // Photo
-                    Center(
-                      child: Column(
-                        children: [ 
-                          SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: Stack(
-                              children: [
-                                Center(
-                                  child: DottedBorderCircle(
-                                    size: 80,
-                                    color: blue,
-                                    child: const Icon(
-                                      Icons.person_outline_rounded,
-                                      color: blue,
-                                      size: 34,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: const BoxDecoration(
-                                      color: blue,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt_outlined,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Photo (facultatif)',
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0x9C000000),
-                            ),
-                          ),
-                        ],
-                      ),
+                
+                   Center(
+  child: GestureDetector(
+    onTap: _pickImage,
+    child: SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        children: [
+          Center(
+            child: _selectedImage != null
+                ? CircleAvatar(
+                    radius: 40,
+                    backgroundImage: FileImage(_selectedImage!),
+                  )
+                : DottedBorderCircle(
+                    size: 80,
+                    color: blue,
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      color: blue,
+                      size: 34,
                     ),
+                  ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: const BoxDecoration(color: blue, shape: BoxShape.circle),
+              child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+),
 
                     const SizedBox(height: 24),
 

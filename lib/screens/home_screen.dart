@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'settings_screen.dart';
 import 'add_tracker_screen.dart';
 import 'notifications_screen.dart';
+import 'services/auth_service.dart';
+import 'family_choice_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,12 +19,31 @@ class _HomeScreenState extends State<HomeScreen> {
   LatLng? _currentPosition;
   Set<Marker> _markers = {};
   bool _loading = true;
+  bool _checkingFamily = true;
 
   @override
-  void initState() {
-    super.initState();
-    _initLocation();
+void initState() {
+  super.initState();
+  _checkFamilyStatus();
+}
+
+Future<void> _checkFamilyStatus() async {
+  final user = await AuthService.getUser();
+
+  if (!mounted) return;
+
+  if (user == null || user['family_id'] == null) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const FamilyChoiceScreen()),
+      (route) => false,
+    );
+    return; // on arrête ici, pas besoin de charger la carte
   }
+
+  setState(() => _checkingFamily = false);
+  _initLocation(); // seulement si l'utilisateur a bien une famille
+}
 
   @override
   void dispose() {
@@ -86,9 +107,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+Widget build(BuildContext context) {
+  if (_checkingFamily) {
+    return const Scaffold(
+      backgroundColor: Color(0xFFF4F6FA),
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  return Scaffold(
+    body: Stack(
         children: [
           // Carte Google Maps
           _loading

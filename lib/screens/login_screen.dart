@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'register_screen.dart';
 import 'services/auth_service.dart';
+import 'family_choice_screen.dart';
+import 'home_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -262,6 +265,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             errorText: _passwordError,
                           ),
+                          const SizedBox(height: 10),
+Align(
+  alignment: Alignment.centerRight,
+  child: GestureDetector(
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+    ),
+    child: const Text(
+      'Mot de passe oublié ?',
+      style: TextStyle(
+        fontFamily: 'EncodeSansSemiExpanded',
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        decoration: TextDecoration.underline,
+      ),
+    ),
+  ),
+),
                           const SizedBox(height: 28),
 
                           // Bouton Suivant
@@ -281,8 +304,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                 if (!mounted) return;
 
                                 if (result['success'] == true) {
-                                  Navigator.pushReplacementNamed(context, '/home');
-                                } else {
+  final user = await AuthService.getUser();
+
+  if (!mounted) return;
+
+  final bool aUneFamille = user != null && user['family_id'] != null;
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(
+      builder: (_) => aUneFamille ? const HomeScreen() : const FamilyChoiceScreen(),
+    ),
+    (route) => false,
+  );
+} else {
                                   // ✅ Gestion élégante des erreurs serveur
                                   String errorMessage = result['message'] ?? 'Email ou mot de passe incorrect';
                                   setState(() => _globalError = errorMessage);

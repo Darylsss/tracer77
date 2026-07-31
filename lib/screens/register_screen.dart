@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'login_screen.dart';
 import 'services/auth_service.dart';
+import 'family_choice_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -177,106 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ✅ NOTIFICATION MODERNE
-  void _showSuccessNotification(String message) {
-    if (!mounted) return;
-    
-    final overlay = Overlay.of(context);
-    if (overlay == null) return;
-
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 60,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF00C853).withOpacity(0.9),
-                      const Color(0xFF00E676).withOpacity(0.85),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
-                      blurRadius: 30,
-                      offset: const Offset(0, 15),
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check_circle_rounded,
-                        color: Color(0xFF00C853),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Félicitations !',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 17,
-                              fontFamily: 'EncodeSansSemiExpanded',
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          Text(
-                            message,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontFamily: 'EncodeSansSemiExpanded',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (overlayEntry.mounted) {
-        overlayEntry.remove();
-      }
-    });
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -433,22 +335,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     if (!mounted) return;
 
                                     if (result['success'] == true) {
-                                      _showSuccessNotification(
-                                        'Inscription réussie ! Veuillez vous connecter.'
-                                      );
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const FamilyChoiceScreen(),
+                                        ),
+                                        );
                                       
-                                      Future.delayed(const Duration(seconds: 2), () {
-                                        if (mounted) {
-                                          Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => const LoginScreen(),
-                                            ),
-                                          );
-                                        }
-                                      });
+                                  
                                     } else {
-                                      // ✅ 6. GESTION DES ERREURS SERVEUR
+                                     
                                       String errorMessage = result['message'] ?? 'Erreur lors de l\'inscription';
                                       setState(() => _globalError = errorMessage);
 

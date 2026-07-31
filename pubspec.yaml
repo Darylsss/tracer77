@@ -46,6 +46,8 @@ dependencies:
   
   # Stockage sécurisé
   flutter_secure_storage: ^9.0.0
+
+  image_picker: ^1.1.2
   
 
 
