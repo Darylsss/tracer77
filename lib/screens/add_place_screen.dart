@@ -1,86 +1,154 @@
 import 'package:flutter/material.dart';
+import 'add_place_map_screen.dart';
+import '../models/place.dart';
+import 'services/place_service.dart';
+import 'add_tracker_screen.dart';
 
-class AddPlaceScreen extends StatelessWidget {
-  const AddPlaceScreen({super.key});
+class AddPlaceScreen extends StatefulWidget {
+  final List<Map<String, dynamic>> initialDrafts;
+
+  const AddPlaceScreen({super.key, this.initialDrafts = const []});
+
+  @override
+  State<AddPlaceScreen> createState() => _AddPlaceScreenState();
+}
+
+class _AddPlaceScreenState extends State<AddPlaceScreen> {
+  late List<Map<String, dynamic>> _draftPlaces;
+
+  @override
+  void initState() {
+    super.initState();
+    _draftPlaces = List.from(widget.initialDrafts);
+  }
+
+  bool _hasDraft(PlaceType type) {
+    return _draftPlaces.any((d) => d['type'] == type);
+  }
+
+  Future<void> _openMap(PlaceType type) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddPlaceMapScreen(
+          type: type,
+          placeService: PlaceService(baseUrl: 'http://192.168.1.94:8000/api'),
+          // enfantId non fourni → mode brouillon automatique
+        ),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        // remplace le brouillon existant du même type s'il y en avait un
+        _draftPlaces.removeWhere((d) => d['type'] == type);
+        _draftPlaces.add(result);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${result['nom']} ajouté (sera enregistré avec le traceur)')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left,
-                        color: Colors.black54, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Ajouter des lieux',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'Montserrat',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _draftPlaces);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6FA),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, color: Colors.black54, size: 28),
+                      onPressed: () => Navigator.pop(context, _draftPlaces),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Ajouter des lieux',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Liste des options
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF0185FF), width: 1),
-                ),
-                child: Column(
-                  children: [
-                    _placeTile(
-                      imagePath: 'assets/images/domicile.png',
-                      title: 'Ajouter un domicile',
-                      subtitle: 'Lieu où vous vivez',
-                      isFirst: true,
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16,
-                        color: Color(0xFFE0E0E0)),
-                    _placeTile(
-                      imagePath: 'assets/images/ecole.png',
-                      title: 'Ajouter une école',
-                      subtitle: 'Ou lycées, collèges, universités',
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16,
-                        color: Color(0xFFE0E0E0)),
-                    _placeTile(
-                      imagePath: 'assets/images/team.png',
-                      title: "Ajouter le domicile d'un proche",
-                      subtitle: 'Lieu où vivent vos proches',
-                      onTap: () {},
-                    ),
-                    const Divider(height: 1, indent: 16, endIndent: 16,
-                        color: Color(0xFFE0E0E0)),
-                    _autrelieuTile(onTap: () {}),
+                    const SizedBox(width: 48),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 16),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF0185FF), width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      _placeTile(
+                        imagePath: 'assets/images/domicile.png',
+                        title: 'Ajouter un domicile',
+                        subtitle: 'Lieu où vous vivez',
+                        isFirst: true,
+                        added: _hasDraft(PlaceType.domicile),
+                        onTap: () => _openMap(PlaceType.domicile),
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                      _placeTile(
+                        imagePath: 'assets/images/ecole.png',
+                        title: 'Ajouter une école',
+                        subtitle: 'Ou lycées, collèges, universités',
+                        added: _hasDraft(PlaceType.ecole),
+                        onTap: () => _openMap(PlaceType.ecole),
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                      _placeTile(
+                        imagePath: 'assets/images/team.png',
+                        title: "Ajouter le domicile d'un proche",
+                        subtitle: 'Lieu où vivent vos proches',
+                        added: _hasDraft(PlaceType.proche),
+                        onTap: () => _openMap(PlaceType.proche),
+                      ),
+                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                      _autrelieuTile(onTap: () => _openMap(PlaceType.autre)),
+                    ],
+                  ),
+                ),
+              ),
+
+              if (_draftPlaces.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '${_draftPlaces.length} lieu(x) prêt(s) à être enregistré(s) avec le traceur',
+                    style: const TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 12,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -92,6 +160,7 @@ class AddPlaceScreen extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
     bool isFirst = false,
+    bool added = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -102,12 +171,7 @@ class AddPlaceScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Image.asset(
-              imagePath,
-              width: 42,
-              height: 42,
-              fit: BoxFit.contain,
-            ),
+            Image.asset(imagePath, width: 42, height: 42, fit: BoxFit.contain),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -135,6 +199,7 @@ class AddPlaceScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (added) const Icon(Icons.check_circle, color: Color(0xFF0185FF), size: 20),
           ],
         ),
       ),
@@ -159,11 +224,7 @@ class AddPlaceScreen extends StatelessWidget {
                     color: const Color(0xFFECF6FF),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
-                    Icons.location_on_outlined,
-                    color: Color(0xFF0185FF),
-                    size: 24,
-                  ),
+                  child: const Icon(Icons.location_on_outlined, color: Color(0xFF0185FF), size: 24),
                 ),
                 Positioned(
                   bottom: -4,
@@ -171,15 +232,8 @@ class AddPlaceScreen extends StatelessWidget {
                   child: Container(
                     width: 18,
                     height: 18,
-                    decoration: const BoxDecoration(
-                      color: Colors.black87,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 12,
-                    ),
+                    decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                    child: const Icon(Icons.add, color: Colors.white, size: 12),
                   ),
                 ),
               ],
