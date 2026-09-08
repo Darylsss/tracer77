@@ -5,17 +5,23 @@ import 'services/auth_service.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'services/auth_service.dart';
+import 'add_place_screen.dart';
+import 'services/place_service.dart';
+import '../models/place.dart';
 
 class AddTrackerScreen extends StatefulWidget {
   const AddTrackerScreen({super.key});
+  
 
   @override
   State<AddTrackerScreen> createState() => _AddTrackerScreenState();
+  
 }
 
 class _AddTrackerScreenState extends State<AddTrackerScreen> {
   final _nomController = TextEditingController();
   final _deviceIdController = TextEditingController();
+  List<Map<String, dynamic>> _draftPlaces = [];
 
   String _selectedRole = 'Enfant';
   bool _loading = false;
@@ -52,14 +58,34 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
     photo: _selectedImage,
   );
 
-  setState(() => _loading = false);
-
   if (result['success'] == true) {
+    final enfantId = result['enfant']['id']; // vérifie que ta réponse a bien cette structure
+
+    final placeService = PlaceService(baseUrl: 'http://192.168.1.94:8000/api');
+    for (final draft in _draftPlaces) {
+      try {
+        await placeService.createPlace(enfantId, Place(
+          enfantId: enfantId,
+          type: draft['type'],
+          nom: draft['nom'],
+          latitude: draft['latitude'],
+          longitude: draft['longitude'],
+          rayon: draft['rayon'],
+        ));
+      } catch (e) {
+        debugPrint('Erreur enregistrement lieu brouillon: $e');
+      }
+    }
+
+    setState(() => _loading = false);
     if (mounted) Navigator.pop(context);
-  } else if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message'] ?? 'Erreur lors de l\'ajout.')),
-    );
+  } else {
+    setState(() => _loading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Erreur lors de l\'ajout.')),
+      );
+    }
   }
 }
 
@@ -377,17 +403,22 @@ Future<void> _pickImage() async {
                     Row(
                       children: [
                         Expanded(
-                          child: _outlineButton(
-                            icon: Icons.account_balance_outlined,
-                            label: 'Ajouter des lieux',
-                            onTap: () {
-                              Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AddPlaceScreen()),
-    );
-                            },
-                          ),
-                        ),
+  child: _outlineButton(
+    icon: Icons.account_balance_outlined,
+    label: 'Ajouter des lieux',
+    onTap: () async {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddPlaceScreen(initialDrafts: _draftPlaces),
+        ),
+      );
+      if (result != null && result is List<Map<String, dynamic>>) {
+        setState(() => _draftPlaces = result);
+      }
+    },
+  ),
+),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _outlineButton(
