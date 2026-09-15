@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'invite_member_screen.dart';
 import 'add_tracker_screen.dart';
+import 'enfant_detail_screen.dart';
 
 class EditSpaceScreen extends StatefulWidget {
   const EditSpaceScreen({super.key});
@@ -156,14 +157,16 @@ class _EditSpaceScreenState extends State<EditSpaceScreen> {
                             // Section Enfants
                             _sectionHeader(
                               title: 'Enfants suivis (${_enfants.length})',
-                              actionLabel: 'Ajouter',
-                              onAction: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
-                                );
-                                _load();
-                              },
+                              actionLabel: _estAdmin ? 'Ajouter' : null,
+                              onAction: _estAdmin
+                                  ? () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
+                                      );
+                                      _load();
+                                    }
+                                  : null,
                             ),
                             const SizedBox(height: 10),
                             if (_enfants.isEmpty)
@@ -308,49 +311,79 @@ class _EditSpaceScreenState extends State<EditSpaceScreen> {
   Widget _enfantTile(Map<String, dynamic> e) {
     final position = e['position'];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E8E8)),
-      ),
-      child: Row(
-        children: [
-         CircleAvatar(
-  radius: 20,
-  backgroundColor: const Color(0xFFFFF1EC),
-  backgroundImage: e['photo'] != null ? NetworkImage(e['photo']) : null,
-  child: e['photo'] == null
-      ? Text(
-          (e['prenom'] ?? '?').toString().isNotEmpty ? e['prenom'][0].toUpperCase() : '?',
-          style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Colors.deepOrange),
-        )
-      : null,
-),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${e['prenom'] ?? ''} ${e['nom'] ?? ''}',
-                  style: const TextStyle(fontFamily: 'Montserrat', fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  position != null ? 'Dernière position reçue' : 'Aucune position reçue',
-                  style: TextStyle(
-                    fontFamily: 'Montserrat',
-                    fontSize: 11,
-                    color: position != null ? Colors.green : Colors.black38,
-                  ),
-                ),
-              ],
-            ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EnfantDetailScreen(enfant: e, isAdmin: _estAdmin),
           ),
-        ],
+        );
+        _load();
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE8E8E8)),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFFFFF1EC),
+              backgroundImage: e['photo'] != null ? NetworkImage(e['photo']) : null,
+              child: e['photo'] == null
+                  ? Text(
+                      (e['prenom'] ?? '?').toString().isNotEmpty ? e['prenom'][0].toUpperCase() : '?',
+                      style: const TextStyle(
+                          fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Colors.deepOrange),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${e['prenom'] ?? ''} ${e['nom'] ?? ''}',
+                    style: const TextStyle(fontFamily: 'Montserrat', fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    position != null ? 'Dernière position reçue' : 'Aucune position reçue',
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 11,
+                      color: position != null ? Colors.green : Colors.black38,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: blue.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Voir',
+                    style: TextStyle(fontFamily: 'Montserrat', fontSize: 12, fontWeight: FontWeight.w700, color: blue),
+                  ),
+                  Icon(Icons.chevron_right, color: blue, size: 16),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

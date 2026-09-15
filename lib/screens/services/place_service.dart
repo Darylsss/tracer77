@@ -1,5 +1,3 @@
-
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -47,4 +45,29 @@ class PlaceService {
   }
   throw Exception('Erreur lors du chargement des lieux');
 }
+
+  Future<Place> updatePlace(int placeId, Place place) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/places/$placeId'),
+      headers: await _headers(),
+      body: jsonEncode(place.toJson()),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Place.fromJson(data['place']); // <-- on extrait la sous-clé 'place'
+    }
+    throw Exception('Erreur lors de la modification du lieu : ${response.body}');
+  }
+
+  Future<void> deletePlace(int placeId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/places/$placeId'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('Erreur lors de la suppression du lieu : ${response.body}');
+    }
+  }
 }

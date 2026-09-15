@@ -5,7 +5,7 @@ import 'dart:io';
 
 class AuthService {
   // Pour TÉLÉPHONE PHYSIQUE sur le même réseau WiFi
-  static const String baseUrl = 'http://192.168.1.94:8000/api';
+  static const String baseUrl = 'http://192.168.100.7:8000/api';
   static const _storage = FlutterSecureStorage();
 
   // Inscription
@@ -567,5 +567,58 @@ static Future<Map<String, dynamic>> addEnfantWithPhoto({
   }
 }
 
+// Modifier un enfant (nom / photo)
+static Future<Map<String, dynamic>> updateEnfant({
+  required int enfantId,
+  String? prenom,
+  File? photo,
+}) async {
+  try {
+    final token = await getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Non authentifié'};
+    }
+
+    // POST + _method=PUT : Laravel ne parse pas bien le multipart sur une vraie requête PUT
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/enfants/$enfantId?_method=PUT'),
+    );
+    request.headers['Accept'] = 'application/json';
+    request.headers['Authorization'] = 'Bearer $token';
+
+    if (prenom != null) request.fields['prenom'] = prenom;
+    if (photo != null) {
+      request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
+
+// Retirer un enfant suivi
+static Future<Map<String, dynamic>> deleteEnfant(int enfantId) async {
+  try {
+    final token = await getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Non authentifié'};
+    }
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/enfants/$enfantId'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
 
 }

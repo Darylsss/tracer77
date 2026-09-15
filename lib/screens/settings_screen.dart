@@ -3,6 +3,7 @@ import 'login_screen.dart';
 import 'services/auth_service.dart';
 import 'account_screen.dart';
 import 'edit_space_screen.dart';
+import 'places_overview_screen.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -143,7 +144,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       subtitle: 'Ajoutez d\'autres lieux pour savoir quand\nvos proches s\'y rendent.',
                       titleWeight: FontWeight.w700,
                       onTap: () {
-                        // TODO: Naviguer vers les lieux
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PlacesOverviewScreen()),
+                        );
                       },
                     ),
 

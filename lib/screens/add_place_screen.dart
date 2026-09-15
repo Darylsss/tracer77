@@ -6,8 +6,11 @@ import 'add_tracker_screen.dart';
 
 class AddPlaceScreen extends StatefulWidget {
   final List<Map<String, dynamic>> initialDrafts;
+  // Si fourni, les lieux sont enregistrés directement sur cet enfant
+  // (mode brouillon désactivé) — utilisé depuis la fiche d'un enfant existant.
+  final int? enfantId;
 
-  const AddPlaceScreen({super.key, this.initialDrafts = const []});
+  const AddPlaceScreen({super.key, this.initialDrafts = const [], this.enfantId});
 
   @override
   State<AddPlaceScreen> createState() => _AddPlaceScreenState();
@@ -32,11 +35,20 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       MaterialPageRoute(
         builder: (_) => AddPlaceMapScreen(
           type: type,
-          placeService: PlaceService(baseUrl: 'http://192.168.1.94:8000/api'),
-          // enfantId non fourni → mode brouillon automatique
+          placeService: PlaceService(baseUrl: 'http://192.168.100.7:8000/api'),
+          enfantId: widget.enfantId, // null → mode brouillon, sinon enregistrement direct
         ),
       ),
     );
+
+    // Mode direct : le lieu est déjà enregistré côté serveur par AddPlaceMapScreen.
+    // On remonte juste l'info à l'appelant pour qu'il rafraîchisse sa liste.
+    if (widget.enfantId != null) {
+      if (result == true && mounted) {
+        Navigator.pop(context, true);
+      }
+      return;
+    }
 
     if (result != null && result is Map<String, dynamic>) {
       setState(() {

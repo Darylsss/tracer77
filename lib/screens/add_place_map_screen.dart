@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -15,12 +13,15 @@ class AddPlaceMapScreen extends StatefulWidget {
   final PlaceType type;
   final PlaceService placeService;
   final int? enfantId;
+  // Si fourni, l'écran s'ouvre en mode "modification" pré-rempli avec ce lieu
+  final Place? existingPlace;
 
   const AddPlaceMapScreen({
     super.key,
     required this.type,
     required this.placeService,
     this.enfantId,
+    this.existingPlace,
   });
 
 
@@ -37,6 +38,11 @@ class _AddPlaceMapScreenState extends State<AddPlaceMapScreen> {
   double _radius = 100;
   bool _isSaving = false;
 
+  // Zone de sécurité : alerte si le traceur quitte ce lieu
+  bool _alerteSortie = false;
+  int _delaiGrace = 15; // en minutes
+  static const List<int> _delaisDisponibles = [5, 10, 15, 20, 30, 45, 60];
+
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
 
@@ -45,6 +51,8 @@ class _AddPlaceMapScreenState extends State<AddPlaceMapScreen> {
 Timer? _debounce;
 bool _isSearching = false;
 
+  bool get _isEditing => widget.existingPlace != null;
+
   @override
   void initState() {
   super.initState();
@@ -52,8 +60,19 @@ bool _isSearching = false;
   _autocompleteService = PlacesAutocompleteService(
     apiKey: dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '',
   );
-  _nameController.text = widget.type.defaultLabel;
-  _getCurrentLocation();
+
+  final existing = widget.existingPlace;
+  if (existing != null) {
+    // Mode modification : on pré-remplit avec les valeurs existantes
+    _nameController.text = existing.nom;
+    _center = LatLng(existing.latitude, existing.longitude);
+    _radius = existing.rayon.toDouble();
+    _alerteSortie = existing.alerteSortie;
+    _delaiGrace = existing.delaiGrace ?? 15;
+  } else {
+    _nameController.text = widget.type.defaultLabel;
+    _getCurrentLocation();
+  }
 }
 
   Future<void> _getCurrentLocation() async {
@@ -82,6 +101,8 @@ bool _isSearching = false;
     'latitude': _center.latitude,
     'longitude': _center.longitude,
     'rayon': _radius.round(),
+    'alerteSortie': _alerteSortie,
+    'delaiGrace': _alerteSortie ? _delaiGrace : null,
   };
 
   // Mode brouillon : l'enfant n'existe pas encore, on renvoie juste les données
@@ -100,8 +121,14 @@ bool _isSearching = false;
       latitude: _center.latitude,
       longitude: _center.longitude,
       rayon: _radius.round(),
+      alerteSortie: _alerteSortie,
+      delaiGrace: _alerteSortie ? _delaiGrace : null,
     );
-    await widget.placeService.createPlace(widget.enfantId!, place);
+    if (_isEditing && widget.existingPlace?.id != null) {
+      await widget.placeService.updatePlace(widget.existingPlace!.id!, place);
+    } else {
+      await widget.placeService.createPlace(widget.enfantId!, place);
+    }
     if (mounted) Navigator.pop(context, true);
   } catch (e) {
     if (mounted) {
@@ -183,7 +210,7 @@ void dispose() {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          widget.type.title,
+                          _isEditing ? 'Modifier : ${widget.type.title}' : widget.type.title,
                           style: const TextStyle(
                             fontFamily: 'Montserrat',
                             fontWeight: FontWeight.w700,
@@ -326,7 +353,130 @@ const SizedBox(height: 16),
                     inactiveColor: accentBlue.withOpacity(0.2),
                     onChanged: (value) => setState(() => _radius = value),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
+
+                  // Zone de sécurité : alerte si le traceur quitte ce lieu
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: _alerteSortie
+                          ? accentBlue.withOpacity(0.08)
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _alerteSortie
+                            ? accentBlue.withOpacity(0.4)
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _alerteSortie
+                                  ? Icons.notifications_active_rounded
+                                  : Icons.notifications_none_rounded,
+                              color: _alerteSortie ? accentBlue : Colors.black45,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Alerter si le traceur quitte ce lieu',
+                                    style: TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: darkBlue,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Ce lieu devient une zone de sécurité',
+                                    style: TextStyle(
+                                      fontFamily: 'Montserrat',
+                                      fontSize: 11,
+                                      color: Colors.black.withOpacity(0.45),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _alerteSortie,
+                              activeColor: accentBlue,
+                              onChanged: (value) => setState(() => _alerteSortie = value),
+                            ),
+                          ],
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          child: _alerteSortie
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Délai de grâce avant l\'alerte',
+                                        style: TextStyle(
+                                          fontFamily: 'Montserrat',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black.withOpacity(0.55),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: _delaisDisponibles.map((minutes) {
+                                          final selected = _delaiGrace == minutes;
+                                          return GestureDetector(
+                                            onTap: () => setState(() => _delaiGrace = minutes),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 150),
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 14, vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: selected ? accentBlue : Colors.white,
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: selected
+                                                      ? accentBlue
+                                                      : Colors.black12,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '$minutes min',
+                                                style: TextStyle(
+                                                  fontFamily: 'Montserrat',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: selected
+                                                      ? Colors.white
+                                                      : Colors.black54,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   SizedBox(
                     width: double.infinity,

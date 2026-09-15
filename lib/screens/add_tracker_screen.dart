@@ -61,7 +61,7 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
   if (result['success'] == true) {
     final enfantId = result['enfant']['id']; // vérifie que ta réponse a bien cette structure
 
-    final placeService = PlaceService(baseUrl: 'http://192.168.1.94:8000/api');
+    final placeService = PlaceService(baseUrl: 'http://192.168.100.7:8000/api');
     for (final draft in _draftPlaces) {
       try {
         await placeService.createPlace(enfantId, Place(
@@ -71,6 +71,8 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
           latitude: draft['latitude'],
           longitude: draft['longitude'],
           rayon: draft['rayon'],
+          alerteSortie: draft['alerteSortie'] ?? false,
+          delaiGrace: draft['delaiGrace'],
         ));
       } catch (e) {
         debugPrint('Erreur enregistrement lieu brouillon: $e');
@@ -388,7 +390,7 @@ Future<void> _pickImage() async {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
-                        'Vous pouvez configurez des lieux et une zone de sécurité qui est un périmètre que vous définissez sur la carte. Si le traceur le quitte, vous recevez une alerte immédiatement.',
+                        'Ajoutez les lieux importants (domicile, école...). Pour chacun, vous pouvez activer une alerte si le traceur le quitte, avec un délai de grâce pour éviter les fausses alertes en trajet.',
                         style: TextStyle(
                           fontFamily: 'Montserrat',
                           fontSize: 11,
@@ -400,35 +402,44 @@ Future<void> _pickImage() async {
 
                     const SizedBox(height: 14),
 
-                    Row(
-                      children: [
-                        Expanded(
-  child: _outlineButton(
-    icon: Icons.account_balance_outlined,
-    label: 'Ajouter des lieux',
-    onTap: () async {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AddPlaceScreen(initialDrafts: _draftPlaces),
-        ),
-      );
-      if (result != null && result is List<Map<String, dynamic>>) {
-        setState(() => _draftPlaces = result);
-      }
-    },
-  ),
-),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _outlineButton(
-                            icon: Icons.map_outlined,
-                            label: 'Définir une zone sur la carte',
-                            onTap: () {},
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: _outlineButton(
+                        icon: Icons.account_balance_outlined,
+                        label: _draftPlaces.isEmpty
+                            ? 'Ajouter des lieux'
+                            : '${_draftPlaces.length} lieu(x) ajouté(s) — modifier',
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddPlaceScreen(initialDrafts: _draftPlaces),
+                            ),
+                          );
+                          if (result != null && result is List<Map<String, dynamic>>) {
+                            setState(() => _draftPlaces = result);
+                          }
+                        },
+                      ),
                     ),
+                    if (_draftPlaces.any((d) => d['alerteSortie'] == true)) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.shield_rounded, color: blue, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_draftPlaces.where((d) => d['alerteSortie'] == true).length} zone(s) de sécurité active(s)',
+                            style: const TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
 
                     const SizedBox(height: 28),
 

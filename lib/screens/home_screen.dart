@@ -6,6 +6,7 @@ import 'add_tracker_screen.dart';
 import 'notifications_screen.dart';
 import 'services/auth_service.dart';
 import 'family_choice_screen.dart';
+import 'invite_member_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Set<Marker> _markers = {};
   bool _loading = true;
   bool _checkingFamily = true;
+  bool _isAdmin = false;
+  String? _nomFamille;
 
   @override
 void initState() {
@@ -41,7 +44,11 @@ Future<void> _checkFamilyStatus() async {
     return; // on arrête ici, pas besoin de charger la carte
   }
 
-  setState(() => _checkingFamily = false);
+  setState(() {
+    _checkingFamily = false;
+    _isAdmin = user['role'] == 'admin_famille';
+    _nomFamille = user['family']?['nom'] ?? user['family_nom'];
+  });
   _initLocation(); // seulement si l'utilisateur a bien une famille
 }
 
@@ -136,8 +143,8 @@ Widget build(BuildContext context) {
 
           // Boutons haut gauche
           Positioned(
-            top: 60,
-            left: 16,
+            top: 130,
+            left: 10,
             child: Column(
               children: [
                 _buildIconButton(Icons.settings_outlined, () {
@@ -155,6 +162,45 @@ Widget build(BuildContext context) {
 }),
 
               ],
+            ),
+          ),
+
+          // Pastille "Famille" en haut, centrée et adaptée à son contenu
+          Positioned(
+            top: 60,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: _openFamilleSheet,
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(19),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _nomFamille != null ? '$_nomFamille' : 'Famille',
+                        style: const TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54, size: 18),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
 
@@ -314,6 +360,135 @@ Positioned(
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Feuille "Famille" ouverte depuis la pastille du haut
+  void _openFamilleSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => FutureBuilder<Map<String, dynamic>>(
+        future: AuthService.getFamilyMembers(),
+        builder: (context, snapshot) {
+          final membres = (snapshot.data?['membres'] as List?) ?? [];
+          final enfants = (snapshot.data?['enfants'] as List?) ?? [];
+          final totalPersonnes = membres.length + enfants.length;
+
+          return Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                Text(
+                  _nomFamille != null ? '$_nomFamille' : 'Famille',
+                  style: const TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: CircularProgressIndicator(color: Color(0xFF1A6FE3))),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF4F6FA),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A6FE3).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.family_restroom_rounded, color: Color(0xFF1A6FE3)),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Votre famille',
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$totalPersonnes membre(s) suivi(s)',
+                                style: const TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 12,
+                                  color: Colors.black45,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_isAdmin) ...[
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const InviteMemberScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A6FE3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 20),
+                      label: const Text(
+                        'Ajouter un membre',
+                        style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
