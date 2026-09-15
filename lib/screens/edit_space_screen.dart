@@ -134,16 +134,24 @@ class _EditSpaceScreenState extends State<EditSpaceScreen> {
                             // Section Membres
                             _sectionHeader(
                               title: 'Membres (${_membres.length})',
-                              actionLabel: _estAdmin ? 'Inviter' : null,
-                              onAction: _estAdmin
-                                  ? () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const InviteMemberScreen()),
-                                      );
-                                      _load();
-                                    }
-                                  : null,
+                              actionLabel: 'Inviter',
+                              onAction: () async {
+                                if (!_estAdmin) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Seul un admin peut inviter un individu .',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const InviteMemberScreen()),
+                                );
+                                _load();
+                              },
                             ),
                             const SizedBox(height: 10),
                             if (_membres.isEmpty)
@@ -158,6 +166,16 @@ class _EditSpaceScreenState extends State<EditSpaceScreen> {
                               title: 'Enfants suivis (${_enfants.length})',
                               actionLabel: 'Ajouter',
                               onAction: () async {
+                                if (!_estAdmin) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Seul un admin peut ajouter un traceur .',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
