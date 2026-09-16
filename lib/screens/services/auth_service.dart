@@ -268,6 +268,35 @@ class AuthService {
     }
   }
 
+  // Modifier la photo de profil
+  static Future<Map<String, dynamic>> updatePhoto(File photo) async {
+    try {
+      final token = await getToken();
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/user/update-photo'));
+
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+
+      request.files.add(await http.MultipartFile.fromPath('photo', photo.path));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        final currentUser = await getCachedUser();
+        if (currentUser != null) {
+          currentUser['photo'] = data['photo'];
+          await updateCachedUser(currentUser);
+        }
+      }
+
+      return data;
+    } catch (e) {
+      return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+    }
+  }
+
   // Modifier le mot de passe
   static Future<Map<String, dynamic>> updatePassword({
     required String currentPassword,
@@ -619,6 +648,67 @@ static Future<Map<String, dynamic>> deleteEnfant(int enfantId) async {
   } catch (e) {
     return {'success': false, 'message': 'Erreur de connexion au serveur.'};
   }
+}
+
+// Récupérer les alertes de la famille
+static Future<Map<String, dynamic>> getAlerts() async {
+  try {
+    final token = await getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/alerts'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    return jsonDecode(response.body);
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
+
+// Modifier le téléphone
+static Future<Map<String, dynamic>> updatePhone(String telephone) async {
+  try {
+    final token = await getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Non authentifié'};
+    }
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/user/update-phone'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'telephone': telephone}),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      final currentUser = await getCachedUser();
+      if (currentUser != null) {
+        currentUser['telephone'] = telephone;
+        await updateCachedUser(currentUser);
+      }
+    }
+
+    return data;
+  } catch (e) {
+    return {'success': false, 'message': 'Erreur de connexion au serveur.'};
+  }
+}
+
+// Dernier ID d'alerte vu (pour éviter de re-notifier)
+static Future<int?> getLastAlertId() async {
+  final value = await _storage.read(key: 'last_alert_id');
+  return value != null ? int.tryParse(value) : null;
+}
+
+static Future<void> setLastAlertId(int id) async {
+  await _storage.write(key: 'last_alert_id', value: id.toString());
 }
 
 }

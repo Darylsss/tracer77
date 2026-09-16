@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'edit_name_screen.dart';
 import 'edit_password_screen.dart';
 import 'login_screen.dart';
@@ -14,7 +16,11 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   String _nom = '';
   String _email = '';
+  String? _photoUrl;
+  String _telephone = '';
+  File? _localPhoto;
   bool _loading = true;
+  bool _uploadingPhoto = false;
   String? _errorMessage;
 
   static const Color blue = Color(0xFF0185FF);
@@ -27,35 +33,36 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _loadUserInfo() async {
     print('🔵 Chargement des infos utilisateur...');
-    
+
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
 
     try {
-      // 1️⃣ D'abord essayer le cache
       final cachedUser = await AuthService.getCachedUser();
       if (cachedUser != null) {
         print('🟢 Utilisateur chargé depuis le cache');
         setState(() {
           _nom = cachedUser['nom']?.toString() ?? 'Sans nom';
           _email = cachedUser['email']?.toString() ?? 'Email non disponible';
+          _photoUrl = cachedUser['photo']?.toString();
+          _telephone = cachedUser['telephone']?.toString() ?? '';
           _loading = false;
         });
       }
 
-      // 2️⃣ Puis rafraîchir depuis l'API
       final user = await AuthService.getUser();
       if (user != null) {
         print('🟢 Utilisateur chargé depuis l\'API');
         setState(() {
           _nom = user['nom']?.toString() ?? 'Sans nom';
           _email = user['email']?.toString() ?? 'Email non disponible';
+          _photoUrl = user['photo']?.toString();
+          _telephone = user['telephone']?.toString() ?? '';
           _loading = false;
         });
       } else if (cachedUser == null) {
-        // Pas de cache ET pas d'API
         setState(() {
           _errorMessage = 'Impossible de charger vos informations';
           _loading = false;
@@ -68,6 +75,103 @@ class _AccountScreenState extends State<AccountScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: blue),
+              title: const Text('Choisir depuis la galerie', style: TextStyle(fontFamily: 'Montserrat')),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: blue),
+              title: const Text('Prendre une photo', style: TextStyle(fontFamily: 'Montserrat')),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+    setState(() {
+      _localPhoto = file;
+      _uploadingPhoto = true;
+    });
+
+    final result = await AuthService.updatePhoto(file);
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      setState(() {
+        _photoUrl = result['photo'];
+        _localPhoto = null;
+        _uploadingPhoto = false;
+      });
+    } else {
+      setState(() {
+        _localPhoto = null;
+        _uploadingPhoto = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Erreur lors de l\'envoi de la photo.')),
+      );
+    }
+  }
+
+  void _editPhone() {
+    final controller = TextEditingController(text: _telephone);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Numéro de téléphone',
+          style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(hintText: '+229...'),
+          style: const TextStyle(fontFamily: 'Montserrat'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler', style: TextStyle(fontFamily: 'Montserrat', color: Colors.black54)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final result = await AuthService.updatePhone(controller.text.trim());
+              if (result['success'] == true && mounted) {
+                setState(() => _telephone = controller.text.trim());
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result['message'] ?? 'Erreur.')),
+                );
+              }
+            },
+            child: const Text('Enregistrer', style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: blue)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmDeleteAccount() {
@@ -137,7 +241,6 @@ class _AccountScreenState extends State<AccountScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar avec bouton refresh
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
@@ -169,7 +272,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
             const Divider(height: 1, color: Color(0xFFE0E0E0)),
 
-            // Contenu
             Expanded(
               child: _buildBody(),
             ),
@@ -226,23 +328,65 @@ class _AccountScreenState extends State<AccountScreen> {
       );
     }
 
-    // ✅ Tout va bien, on affiche les infos
     return SingleChildScrollView(
       child: Column(
         children: [
           const SizedBox(height: 28),
 
-          // Avatar
-          CircleAvatar(
-            radius: 42,
-            backgroundColor: const Color(0xFFECF6FF),
-            child: Text(
-              _nom.isNotEmpty ? _nom[0].toUpperCase() : '?',
-              style: const TextStyle(
-                fontFamily: 'Montserrat',
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-                color: blue,
+          // Avatar avec sélection de photo
+          GestureDetector(
+            onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+            child: SizedBox(
+              width: 84,
+              height: 84,
+              child: Stack(
+                children: [
+                  Center(
+                    child: _uploadingPhoto
+                        ? const CircleAvatar(
+                            radius: 42,
+                            backgroundColor: Color(0xFFECF6FF),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: blue),
+                            ),
+                          )
+                        : _localPhoto != null
+                            ? CircleAvatar(
+                                radius: 42,
+                                backgroundImage: FileImage(_localPhoto!),
+                              )
+                            : (_photoUrl != null && _photoUrl!.isNotEmpty)
+                                ? CircleAvatar(
+                                    radius: 42,
+                                    backgroundImage: NetworkImage(_photoUrl!),
+                                  )
+                                : CircleAvatar(
+                                    radius: 42,
+                                    backgroundColor: const Color(0xFFECF6FF),
+                                    child: Text(
+                                      _nom.isNotEmpty ? _nom[0].toUpperCase() : '?',
+                                      style: const TextStyle(
+                                        fontFamily: 'Montserrat',
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.w700,
+                                        color: blue,
+                                      ),
+                                    ),
+                                  ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(color: blue, shape: BoxShape.circle),
+                      child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 15),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -273,7 +417,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
           const SizedBox(height: 32),
 
-          // Section Informations
           _sectionLabel('Informations personnelles'),
           const SizedBox(height: 10),
 
@@ -290,7 +433,6 @@ class _AccountScreenState extends State<AccountScreen> {
               );
               if (updated != null && updated.isNotEmpty) {
                 setState(() => _nom = updated);
-                // Rafraîchir le cache
                 await AuthService.getUser();
               }
             },
@@ -303,9 +445,15 @@ class _AccountScreenState extends State<AccountScreen> {
             showChevron: false,
           ),
 
+          _accountTile(
+            icon: Icons.phone_outlined,
+            label: 'Téléphone (appel SOS)',
+            value: _telephone.isNotEmpty ? _telephone : 'Non défini',
+            onTap: _editPhone,
+          ),
+
           const SizedBox(height: 24),
 
-          // Section Sécurité
           _sectionLabel('Sécurité'),
           const SizedBox(height: 10),
 
@@ -324,7 +472,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
           const SizedBox(height: 24),
 
-          // Section Danger
           _sectionLabel('Zone de danger'),
           const SizedBox(height: 10),
 

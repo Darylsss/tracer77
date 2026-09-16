@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -21,8 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Set<Marker> _markers = {};
   bool _loading = true;
   bool _checkingFamily = true;
-  bool _isAdmin = false;
   String? _nomFamille;
+  String? _monRole;
+  bool get _estAdmin => _monRole == 'admin_famille';
+  List<dynamic> _enfants = [];
+  Timer? _alertTimer;
+  int? _lastAlertId;
 
   @override
 void initState() {
@@ -46,15 +52,61 @@ Future<void> _checkFamilyStatus() async {
 
   setState(() {
     _checkingFamily = false;
-    _isAdmin = user['role'] == 'admin_famille';
+    _monRole = user['role'];
     _nomFamille = user['family']?['nom'] ?? user['family_nom'];
   });
   _initLocation(); // seulement si l'utilisateur a bien une famille
+  _chargerEnfants();
+  _startAlertPolling();
 }
 
-  @override
+    @override
   void dispose() {
+    _alertTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _startAlertPolling() async {
+    _lastAlertId = await AuthService.getLastAlertId();
+    _checkAlerts();
+    _alertTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkAlerts());
+  }
+
+  Future<void> _checkAlerts() async {
+    final result = await AuthService.getAlerts();
+    if (result['success'] != true) return;
+    final List alertes = result['alertes'] ?? [];
+    if (alertes.isEmpty) return;
+
+    final int newestId = alertes.first['id'];
+
+    if (_lastAlertId == null) {
+      _lastAlertId = newestId;
+      await AuthService.setLastAlertId(newestId);
+      return;
+    }
+
+    if (newestId > _lastAlertId!) {
+      for (var a in alertes) {
+        if (a['id'] > _lastAlertId! && a['type'] == 'sos') {
+          await NotificationService.showSosAlert(a['message'] ?? 'Alerte SOS');
+        }
+      }
+      _lastAlertId = newestId;
+      await AuthService.setLastAlertId(newestId);
+    }
+  }
+
+  // Récupérer les enfants de la famille et leur dernière position
+  Future<void> _chargerEnfants() async {
+    final result = await AuthService.getFamilyMembers();
+    if (!mounted) return;
+    if (result['success'] != false) {
+      setState(() {
+        _enfants = result['enfants'] ?? [];
+      });
+      _majMarqueurs();
+    }
   }
 
   // Position GPS du téléphone
@@ -92,7 +144,7 @@ Future<void> _checkFamilyStatus() async {
     });
   }
 
-  // Mettre à jour le marqueur sur la carte
+  // Mettre à jour les marqueurs sur la carte
   void _majMarqueurs() {
     final Set<Marker> nouveauxMarqueurs = {};
 
@@ -108,6 +160,29 @@ Future<void> _checkFamilyStatus() async {
           ),
         ),
       );
+    }
+
+    // Marqueurs des enfants suivis
+    for (var enfant in _enfants) {
+      final pos = enfant['position'];
+      if (pos != null && pos['lat'] != null && pos['lng'] != null) {
+        final lat = double.tryParse(pos['lat'].toString());
+        final lng = double.tryParse(pos['lng'].toString());
+        if (lat != null && lng != null) {
+          nouveauxMarqueurs.add(
+            Marker(
+              markerId: MarkerId('enfant_${enfant['id']}'),
+              position: LatLng(lat, lng),
+              infoWindow: InfoWindow(
+                title: '${enfant['prenom'] ?? ''} ${enfant['nom'] ?? ''}'.trim(),
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange,
+              ),
+            ),
+          );
+        }
+      }
     }
 
     setState(() => _markers = nouveauxMarqueurs);
@@ -315,6 +390,16 @@ Positioned(
                   // Ajouter un traceur
                   InkWell(
           onTap: () {
+            if (!_estAdmin) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Seul un admin peut ajouter un traceur .',
+                  ),
+                ),
+              );
+              return;
+            }
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
@@ -459,7 +544,7 @@ Positioned(
                       ],
                     ),
                   ),
-                if (_isAdmin) ...[
+                if (_estAdmin) ...[
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
