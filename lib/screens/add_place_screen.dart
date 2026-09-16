@@ -35,7 +35,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       MaterialPageRoute(
         builder: (_) => AddPlaceMapScreen(
           type: type,
-          placeService: PlaceService(baseUrl: 'http://192.168.100.7:8000/api'),
+          placeService: PlaceService(baseUrl: 'https://tracer77.duckdns.org/api'),
           enfantId: widget.enfantId, // null → mode brouillon, sinon enregistrement direct
         ),
       ),

@@ -18,7 +18,7 @@ class EnfantPlacesScreen extends StatefulWidget {
 
 class _EnfantPlacesScreenState extends State<EnfantPlacesScreen> {
   static const Color blue = Color(0xFF0185FF);
-  final _placeService = PlaceService(baseUrl: 'http://192.168.100.7:8000/api');
+  final _placeService = PlaceService(baseUrl: 'https://tracer77.duckdns.org/api');
 
   bool _loading = true;
   String? _error;

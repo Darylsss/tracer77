@@ -23,7 +23,6 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
   final _deviceIdController = TextEditingController();
   List<Map<String, dynamic>> _draftPlaces = [];
 
-  String _selectedRole = 'Enfant';
   bool _loading = false;
   File? _selectedImage;
 
@@ -61,7 +60,7 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
   if (result['success'] == true) {
     final enfantId = result['enfant']['id']; // vérifie que ta réponse a bien cette structure
 
-    final placeService = PlaceService(baseUrl: 'http://192.168.100.7:8000/api');
+    final placeService = PlaceService(baseUrl: 'https://tracer77.duckdns.org/api');
     for (final draft in _draftPlaces) {
       try {
         await placeService.createPlace(enfantId, Place(
@@ -254,27 +253,6 @@ Future<void> _pickImage() async {
                               contentPadding: EdgeInsets.zero,
                             ),
                             style: const TextStyle(fontFamily: 'Montserrat', fontSize: 14),
-                          ),
-                          const SizedBox(height: 10),
-                          const Divider(height: 1),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Rôle (pour vous repérer)',
-                            style: TextStyle(
-                              fontFamily: 'Montserrat',
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _rolePill('Enfant'),
-                              const SizedBox(width: 8),
-                              _rolePill('Proche adulte'),
-                              const SizedBox(width: 8),
-                              _rolePill('Objet / bien'),
-                            ],
                           ),
                         ],
                       ),
@@ -499,42 +477,6 @@ Future<void> _pickImage() async {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rolePill(String role) {
-    final selected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
-        decoration: BoxDecoration(
-          color: blueLight,
-          borderRadius: BorderRadius.circular(23),
-          border: selected ? Border.all(color: blue, width: 1.2) : null,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x33000000),
-              offset: Offset(0, -2),
-              blurRadius: 4,
-            ),
-            BoxShadow(
-              color: Color(0x66FFFFFF),
-              offset: Offset(0, 2),
-              blurRadius: 4,
-            ),
-          ],
-        ),
-        child: Text(
-          role,
-          style: const TextStyle(
-            fontFamily: 'Montserrat',
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: blue,
-          ),
         ),
       ),
     );
