@@ -3,6 +3,7 @@ import '../models/place.dart';
 import 'services/place_service.dart';
 import 'add_place_screen.dart';
 import 'add_place_map_screen.dart';
+import 'services/auth_service.dart';
 
 // Liste des lieux enregistrés pour un enfant donné.
 // Lecture seule pour un membre, gestion complète (ajout/modif/suppr) pour l'admin.
@@ -18,7 +19,7 @@ class EnfantPlacesScreen extends StatefulWidget {
 
 class _EnfantPlacesScreenState extends State<EnfantPlacesScreen> {
   static const Color blue = Color(0xFF0185FF);
-  final _placeService = PlaceService(baseUrl: 'https://tracer77.duckdns.org/api');
+  final _placeService = PlaceService(baseUrl: AuthService.baseUrl);
 
   bool _loading = true;
   String? _error;

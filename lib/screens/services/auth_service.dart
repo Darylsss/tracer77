@@ -5,7 +5,7 @@ import 'dart:io';
 
 class AuthService {
   // Pour TÉLÉPHONE PHYSIQUE sur le même réseau WiFi
-  static const String baseUrl = 'https://tracer77.duckdns.org/api';
+  static const String baseUrl = 'http://192.168.100.7:8000/api';
   static const _storage = FlutterSecureStorage();
 
   // Inscription

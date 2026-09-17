@@ -3,6 +3,7 @@ import 'add_place_map_screen.dart';
 import '../models/place.dart';
 import 'services/place_service.dart';
 import 'add_tracker_screen.dart';
+import 'services/auth_service.dart';
 
 class AddPlaceScreen extends StatefulWidget {
   final List<Map<String, dynamic>> initialDrafts;
@@ -35,7 +36,7 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
       MaterialPageRoute(
         builder: (_) => AddPlaceMapScreen(
           type: type,
-          placeService: PlaceService(baseUrl: 'https://tracer77.duckdns.org/api'),
+          placeService: PlaceService(baseUrl: AuthService.baseUrl),
           enfantId: widget.enfantId, // null → mode brouillon, sinon enregistrement direct
         ),
       ),
@@ -64,108 +65,115 @@ class _AddPlaceScreenState extends State<AddPlaceScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context, _draftPlaces);
-        return false;
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F6FA),
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Top bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left, color: Colors.black54, size: 28),
-                      onPressed: () => Navigator.pop(context, _draftPlaces),
+ @override
+Widget build(BuildContext context) {
+  return WillPopScope(
+    onWillPop: () async {
+      Navigator.pop(context, _draftPlaces);
+      return false;
+    },
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF4F6FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.black54, size: 28),
+                    onPressed: () => Navigator.pop(context, _draftPlaces),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Ajouter des lieux',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
                     ),
-                    const Expanded(
-                      child: Text(
-                        'Ajouter des lieux',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Montserrat',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+
+            // Tout le contenu scrollable
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(top: 16, bottom: 24),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF0185FF), width: 1),
+                        ),
+                        child: Column(
+                          children: [
+                            _placeTile(
+                              imagePath: 'assets/images/domicile.png',
+                              title: 'Ajouter un domicile',
+                              subtitle: 'Lieu où vous vivez',
+                              isFirst: true,
+                              added: _hasDraft(PlaceType.domicile),
+                              onTap: () => _openMap(PlaceType.domicile),
+                            ),
+                            const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                            _placeTile(
+                              imagePath: 'assets/images/ecole.png',
+                              title: 'Ajouter une école',
+                              subtitle: 'Ou lycées, collèges, universités',
+                              added: _hasDraft(PlaceType.ecole),
+                              onTap: () => _openMap(PlaceType.ecole),
+                            ),
+                            const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                            _placeTile(
+                              imagePath: 'assets/images/Team.png',
+                              title: "Ajouter le domicile d'un proche",
+                              subtitle: 'Lieu où vivent vos proches',
+                              added: _hasDraft(PlaceType.proche),
+                              onTap: () => _openMap(PlaceType.proche),
+                            ),
+                            const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
+                            _autrelieuTile(onTap: () => _openMap(PlaceType.autre)),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48),
+
+                    if (_draftPlaces.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          '${_draftPlaces.length} lieu(x) prêt(s) à être enregistré(s) avec le traceur',
+                          style: const TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF0185FF), width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      _placeTile(
-                        imagePath: 'assets/images/domicile.png',
-                        title: 'Ajouter un domicile',
-                        subtitle: 'Lieu où vous vivez',
-                        isFirst: true,
-                        added: _hasDraft(PlaceType.domicile),
-                        onTap: () => _openMap(PlaceType.domicile),
-                      ),
-                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
-                      _placeTile(
-                        imagePath: 'assets/images/ecole.png',
-                        title: 'Ajouter une école',
-                        subtitle: 'Ou lycées, collèges, universités',
-                        added: _hasDraft(PlaceType.ecole),
-                        onTap: () => _openMap(PlaceType.ecole),
-                      ),
-                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
-                      _placeTile(
-                        imagePath: 'assets/images/team.png',
-                        title: "Ajouter le domicile d'un proche",
-                        subtitle: 'Lieu où vivent vos proches',
-                        added: _hasDraft(PlaceType.proche),
-                        onTap: () => _openMap(PlaceType.proche),
-                      ),
-                      const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE0E0E0)),
-                      _autrelieuTile(onTap: () => _openMap(PlaceType.autre)),
-                    ],
-                  ),
-                ),
-              ),
-
-              if (_draftPlaces.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    '${_draftPlaces.length} lieu(x) prêt(s) à être enregistré(s) avec le traceur',
-                    style: const TextStyle(
-                      fontFamily: 'Montserrat',
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _placeTile({
     required String imagePath,
     required String title,

@@ -9,6 +9,12 @@ import 'notifications_screen.dart';
 import 'services/auth_service.dart';
 import 'family_choice_screen.dart';
 import 'invite_member_screen.dart';
+import '../models/place.dart';
+import '../models/position.dart' as models;
+import 'services/place_service.dart';
+import 'services/position_service.dart';
+import 'trip_history_builder.dart';
+import 'trip_route_map.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +35,15 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _enfants = [];
   Timer? _alertTimer;
   int? _lastAlertId;
+
+  // --- Historique / trajet ---
+  late final PlaceService _placeService = PlaceService(baseUrl: AuthService.baseUrl);
+  late final PositionService _positionService = PositionService(baseUrl: AuthService.baseUrl);
+  int? _selectedEnfantId;
+  String _periode = 'aujourdhui';
+  bool _histLoading = false;
+  List<models.Position> _histPositions = [];
+  List<TripEvent> _histEvents = [];
 
   @override
 void initState() {
@@ -107,6 +122,81 @@ Future<void> _checkFamilyStatus() async {
       });
       _majMarqueurs();
     }
+  }
+
+  void _selectEnfant(int enfantId) {
+    setState(() {
+      _selectedEnfantId = enfantId;
+      _periode = 'aujourdhui';
+    });
+    _loadHistorique();
+  }
+
+  void _changerPeriode(String periode) {
+    setState(() => _periode = periode);
+    _loadHistorique();
+  }
+
+  Future<void> _loadHistorique() async {
+    final enfantId = _selectedEnfantId;
+    if (enfantId == null) return;
+
+    setState(() => _histLoading = true);
+
+    try {
+      final places = await _placeService.getPlaces(enfantId);
+      final positions = await _positionService.getHistorique(enfantId, _periode);
+      final alertesResult = await AuthService.getAlerts();
+      final List alertesTout = (alertesResult['alertes'] as List?) ?? [];
+      final alertesEnfant = alertesTout.where((a) => a['enfant_id'] == enfantId).toList();
+
+      final events = await TripHistoryBuilder.build(
+        positions: positions,
+        places: places,
+        alertes: alertesEnfant,
+        resolveUnknown: (lat, lng) => _positionService.reverseGeocode(lat, lng),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _histPositions = positions;
+        _histEvents = events.reversed.toList(); // plus récent en premier
+        _histLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _histPositions = [];
+        _histEvents = [];
+        _histLoading = false;
+      });
+    }
+  }
+
+  void _showAlerteDetail(Map<String, dynamic> alerte) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Alerte',
+          style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 16),
+        ),
+        content: Text(
+          alerte['message'] ?? 'Détails non disponibles.',
+          style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13, color: Colors.black54, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Fermer',
+              style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Color(0xFF1A6FE3)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Position GPS du téléphone
@@ -292,157 +382,176 @@ Widget build(BuildContext context) {
             }),
           ),
 
-          // Panel bas
-Positioned(
-  left: 0,
-  right: 0,
-  bottom: 0,
-  child: Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black12,
-          blurRadius: 10,
-          offset: Offset(0, -2),
-        ),
-      ],
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Handle
-        Container(
-          margin: const EdgeInsets.only(top: 10, bottom: 8),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-
-                  // Vous
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[200],
-                  border: Border.all(color: Colors.grey[300]!, width: 1.5),
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: Colors.grey,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Vous',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Text(
-                          'Localisation\nen direct',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 7,
-                          height: 7,
-                          margin: const EdgeInsets.only(top: 2),
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
+          // Panel bas — défilant : liste des personnes puis historique
+          DraggableScrollableSheet(
+            initialChildSize: 0.32,
+            minChildSize: 0.18,
+            maxChildSize: 0.9,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, -2),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        ),
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    // Handle
+                    Container(
+                      margin: const EdgeInsets.only(top: 10, bottom: 8),
+                      width: 40,
+                      height: 4,
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
 
-        const Divider(height: 1, indent: 16, endIndent: 16),
+                    // Vous
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey[200],
+                              border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                            ),
+                            child: const Icon(Icons.person, color: Colors.grey, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Vous',
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black),
+                                ),
+                                SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Localisation\nen direct',
+                                      style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.2),
+                                    ),
+                                    SizedBox(width: 4),
+                                    _LiveDot(),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-                  // Ajouter un traceur
-                  InkWell(
-          onTap: () {
-            if (!_estAdmin) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Seul un admin peut ajouter un traceur .',
-                  ),
+                    // Enfants suivis
+                    ..._enfants.map((e) => _enfantTile(e)),
+
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+
+                    // Ajouter un traceur
+                    InkWell(
+                      onTap: () {
+                        if (!_estAdmin) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Seul un admin peut ajouter un traceur .')),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF1A6FE3), width: 1.5),
+                              ),
+                              child: const Icon(Icons.person_add_alt_outlined, color: Color(0xFF1A6FE3), size: 22),
+                            ),
+                            const SizedBox(width: 16),
+                            const Text(
+                              'Ajouter un traceur',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A6FE3)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Historique du trajet de l'enfant sélectionné
+                    if (_selectedEnfantId != null) ...[
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                      const SizedBox(height: 12),
+                      _buildPeriodeTabs(),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: TripRouteMap(positions: _histPositions),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          _periodeTitre(),
+                          style: const TextStyle(
+                            fontFamily: 'Montserrat',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black54,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      if (_histLoading)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 30),
+                          child: Center(child: CircularProgressIndicator(color: Color(0xFF1A6FE3))),
+                        )
+                      else if (_histEvents.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                          child: Text(
+                            'Aucun trajet enregistré pour cette période.',
+                            style: TextStyle(fontFamily: 'Montserrat', fontSize: 12, color: Colors.black38),
+                          ),
+                        )
+                      else
+                        ..._histEvents.map((ev) => _eventTile(ev)),
+                      const SizedBox(height: 20),
+                    ],
+
+                    SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+                  ],
                 ),
               );
-              return;
-            }
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddTrackerScreen()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF1A6FE3),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person_add_alt_outlined,
-                    color: Color(0xFF1A6FE3),
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Text(
-                  'Ajouter un traceur',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A6FE3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-                  SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-                ],
-              ),
-            ),
+            },
           ),
         ],
       ),
@@ -578,6 +687,243 @@ Positioned(
     );
   }
 
+  Widget _enfantTile(Map<String, dynamic> e) {
+    final int enfantId = e['id'];
+    final bool selected = _selectedEnfantId == enfantId;
+    final position = e['position'];
+
+    return InkWell(
+      onTap: () => _selectEnfant(enfantId),
+      child: Container(
+        color: selected ? const Color(0xFF1A6FE3).withOpacity(0.06) : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: const Color(0xFFFFF1EC),
+              backgroundImage: e['photo'] != null ? NetworkImage(e['photo']) : null,
+              child: e['photo'] == null
+                  ? Text(
+                      (e['prenom'] ?? '?').toString().isNotEmpty ? e['prenom'][0].toUpperCase() : '?',
+                      style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Colors.deepOrange),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${e['prenom'] ?? ''} ${e['nom'] ?? ''}'.trim(),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        position != null ? 'Localisation\nen direct' : 'Pas de position\nreçue',
+                        style: const TextStyle(fontSize: 13, color: Colors.grey, height: 1.2),
+                      ),
+                      if (position != null) ...const [SizedBox(width: 4), _LiveDot()],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A6FE3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                selected ? 'Historique ▾' : 'Voir plus',
+                style: const TextStyle(fontFamily: 'Montserrat', fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPeriodeTabs() {
+    final options = const [
+      {'key': 'aujourdhui', 'label': "Aujourd'hui"},
+      {'key': 'hier', 'label': 'Hier'},
+      {'key': 'avant_hier', 'label': 'Avant-hier'},
+      {'key': 'semaine', 'label': 'Cette semaine'},
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: options.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final opt = options[i];
+          final selected = _periode == opt['key'];
+          return GestureDetector(
+            onTap: () => _changerPeriode(opt['key']!),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFF1A6FE3) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: selected ? const Color(0xFF1A6FE3) : Colors.black12),
+              ),
+              child: Text(
+                opt['label']!,
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _periodeTitre() {
+    final now = DateTime.now();
+    switch (_periode) {
+      case 'hier':
+        return 'HIER';
+      case 'avant_hier':
+        return 'AVANT-HIER';
+      case 'semaine':
+        return 'CETTE SEMAINE';
+      default:
+        return "AUJOURD'HUI - ${now.day}/${now.month}/${now.year}";
+    }
+  }
+
+  Widget _eventTile(TripEvent ev) {
+    final heureDebut = '${ev.start.hour.toString().padLeft(2, '0')}:${ev.start.minute.toString().padLeft(2, '0')}';
+    final heureFin = ev.end != null
+        ? '${ev.end!.hour.toString().padLeft(2, '0')}:${ev.end!.minute.toString().padLeft(2, '0')}'
+        : null;
+    final duree = ev.end != null ? ev.end!.difference(ev.start) : null;
+
+    if (ev.type == TripEventType.trajet) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8E8E8)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.alt_route_rounded, color: Color(0xFF1A6FE3), size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ev.title, style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 13)),
+                      Text(
+                        heureFin != null ? '$heureDebut - $heureFin' : heureDebut,
+                        style: const TextStyle(fontFamily: 'Montserrat', fontSize: 11, color: Colors.black45),
+                      ),
+                    ],
+                  ),
+                ),
+                if (duree != null)
+                  Text('${duree.inMinutes} min', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 11, color: Colors.black45)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.map_outlined, size: 14, color: Colors.black45),
+                const SizedBox(width: 6),
+                Text('${ev.distanceKm?.toStringAsFixed(1) ?? '0'} km', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 12, color: Colors.black54)),
+                const SizedBox(width: 16),
+                const Icon(Icons.verified_user_outlined, size: 14, color: Colors.green),
+                const SizedBox(width: 6),
+                const Text('Sécurisé', style: TextStyle(fontFamily: 'Montserrat', fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Arrivée
+    final secure = ev.secure ?? true;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: secure ? const Color(0xFFE8E8E8) : Colors.red.shade100),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            secure ? Icons.home_rounded : Icons.warning_amber_rounded,
+            color: secure ? Colors.green : Colors.red,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ev.title, style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      heureFin != null ? '$heureDebut - Zone ${secure ? 'autorisée' : 'non autorisée'}' : heureDebut,
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 11,
+                        color: secure ? Colors.black45 : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (!secure && ev.alerte != null)
+            GestureDetector(
+              onTap: () => _showAlerteDetail(ev.alerte!),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.red),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Voir alerte',
+                  style: TextStyle(fontFamily: 'Montserrat', fontSize: 11, fontWeight: FontWeight.w700, color: Colors.red),
+                ),
+              ),
+            )
+          else if (duree != null)
+            Text('${duree.inMinutes} min', style: const TextStyle(fontFamily: 'Montserrat', fontSize: 11, color: Colors.black45)),
+        ],
+      ),
+    );
+  }
+
   // Widget bouton icône
   Widget _buildIconButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
@@ -598,6 +944,20 @@ Positioned(
         ),
         child: Icon(icon, color: Colors.white, size: 22),
       ),
+    );
+  }
+}
+
+class _LiveDot extends StatelessWidget {
+  const _LiveDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 7,
+      height: 7,
+      margin: const EdgeInsets.only(top: 2),
+      decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
     );
   }
 }

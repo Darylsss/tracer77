@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://tracer77.duckdns.org/api';
+  static const String baseUrl = 'https://192.168.100.7/api';
   final storage = FlutterSecureStorage();
   
   Future<Map<String, String>> getHeaders() async {
