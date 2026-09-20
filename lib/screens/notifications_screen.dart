@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
+import 'notification_detail_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -128,10 +129,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               itemCount: _alertes.length,
-                              itemBuilder: (ctx, i) {
+                                                            itemBuilder: (ctx, i) {
                                 final a = _alertes[i];
                                 final isSos = a['type'] == 'sos';
-                                return Container(
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => NotificationDetailScreen(alerte: Map<String, dynamic>.from(a)),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
                                   margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   decoration: BoxDecoration(
@@ -178,7 +189,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                           ],
                                         ),
                                       ),
+                                      const Icon(Icons.chevron_right, color: Colors.black26, size: 20),
                                     ],
+                                  ),
                                   ),
                                 );
                               },

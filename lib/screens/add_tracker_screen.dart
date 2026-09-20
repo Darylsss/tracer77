@@ -60,7 +60,7 @@ class _AddTrackerScreenState extends State<AddTrackerScreen> {
   if (result['success'] == true) {
     final enfantId = result['enfant']['id']; // vérifie que ta réponse a bien cette structure
 
-    final placeService = PlaceService(baseUrl: 'https://192.168.100.7/api');
+    final placeService = PlaceService(baseUrl: 'https://tracer77.duckdns.org/api');
     for (final draft in _draftPlaces) {
       try {
         await placeService.createPlace(enfantId, Place(

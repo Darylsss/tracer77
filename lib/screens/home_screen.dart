@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _checkingFamily = true;
   String? _nomFamille;
   String? _monRole;
+  String? _maPhoto;
   bool get _estAdmin => _monRole == 'admin_famille';
   List<dynamic> _enfants = [];
   Timer? _alertTimer;
@@ -69,6 +70,7 @@ Future<void> _checkFamilyStatus() async {
     _checkingFamily = false;
     _monRole = user['role'];
     _nomFamille = user['family']?['nom'] ?? user['family_nom'];
+    _maPhoto = user['photo'];
   });
   _initLocation(); // seulement si l'utilisateur a bien une famille
   _chargerEnfants();
@@ -101,10 +103,10 @@ Future<void> _checkFamilyStatus() async {
       return;
     }
 
-    if (newestId > _lastAlertId!) {
+        if (newestId > _lastAlertId!) {
       for (var a in alertes) {
-        if (a['id'] > _lastAlertId! && a['type'] == 'sos') {
-          await NotificationService.showSosAlert(a['message'] ?? 'Alerte SOS');
+        if (a['id'] > _lastAlertId!) {
+          await NotificationService.showSosAlert(a['message'] ?? 'Notification Tracer77');
         }
       }
       _lastAlertId = newestId;
@@ -432,8 +434,16 @@ Widget build(BuildContext context) {
                               shape: BoxShape.circle,
                               color: Colors.grey[200],
                               border: Border.all(color: Colors.grey[300]!, width: 1.5),
+                              image: _maPhoto != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_maPhoto!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
                             ),
-                            child: const Icon(Icons.person, color: Colors.grey, size: 28),
+                            child: _maPhoto == null
+                                ? const Icon(Icons.person, color: Colors.grey, size: 28)
+                                : null,
                           ),
                           const SizedBox(width: 14),
                           const Expanded(

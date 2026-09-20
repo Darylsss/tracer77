@@ -251,13 +251,16 @@ class _EditSpaceScreenState extends State<EditSpaceScreen> {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 20,
-            backgroundColor: const Color(0xFFECF6FF),
-            child: Text(
-              (m['nom'] ?? '?').toString().isNotEmpty ? m['nom'][0].toUpperCase() : '?',
-              style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: blue),
-            ),
-          ),
+  radius: 20,
+  backgroundColor: const Color(0xFFECF6FF),
+  backgroundImage: m['photo'] != null ? NetworkImage(m['photo']) : null,
+  child: m['photo'] == null
+      ? Text(
+          (m['nom'] ?? '?').toString().isNotEmpty ? m['nom'][0].toUpperCase() : '?',
+          style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: blue),
+        )
+      : null,
+),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
